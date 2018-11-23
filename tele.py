@@ -20,10 +20,10 @@ logger = logging.getLogger(__name__)
 DEPARTURE, ARRIVAL, TEST = range(3)
 
 def start(bot, update):
-    update.message.reply_text('Привіт! Надішли мені адресу відправлення:')
+    update.message.reply_text('Привіт! Надішли мені адресу відправлення або геолокацію:')
     return DEPARTURE
 
-def uklon_address(street_name):
+def uklon_address_list(street_name):
     headers = {
         'Accept-Language': 'uk-UA,uk;q=0.9,ru;q=0.8,en-US;q=0.7,en;q=0.6',
         'Cookie': 'City=5'
@@ -35,13 +35,11 @@ def uklon_address(street_name):
         keyboard.append([InlineKeyboardButton(address, callback_data=address)])
     return keyboard
 
-def dep_address(bot, update):
-    global dep_house_number
-    street_name=re.sub("\d*$", "", update.message.text)
-    dep_house_number=update.message.text.replace(street_name, "")
-    reply_markup = InlineKeyboardMarkup(uklon_address(street_name))
-    update.message.reply_text('Обери із переліку:', reply_markup=reply_markup)
-    update.message.reply_text('А тепер адресу прибуття.')
+def dep_address(bot, update, user_data):
+    dep_street_name=re.sub("\d*$", "", update.message.text)
+    user_data['dep_house_number'] = update.message.text.replace(dep_street_name, "")
+    reply_markup = InlineKeyboardMarkup(uklon_address_list(dep_street_name))
+    update.message.reply_text('Обери вулицю із переліку:', reply_markup=reply_markup)
     return ARRIVAL
 
 def dep_location(bot, update):
@@ -49,18 +47,17 @@ def dep_location(bot, update):
     user_location = update.message.location
     logger.info("Location of %s: %f / %f", user.first_name, user_location.latitude,
                 user_location.longitude)
-    update.message.reply_text('А тепер адресу прибуття.')
+    update.message.reply_text('А тепер точку прибуття.')
     return ARRIVAL
 
 def button(bot, update):
-    global street
     query = update.callback_query
-    street=format(query.data)
-    bot.edit_message_text(text="Обрана адреса відправлення: " + street + "\nБудинок: " + dep_house_number + "\nА тепер адреса прибуття.",
+#    user_data['dep_street_name']=query.data
+    bot.edit_message_text(text="Обрана адреса відправлення: " +  "\nБудинок: " + "\nА тепер точку прибуття.",
                           chat_id=query.message.chat_id,
                           message_id=query.message.message_id)
 
-def arr_location(bot, update):
+def arr_location(bot, update, user_data):
     user = update.message.from_user
     user_location = update.message.location
     logger.info("Location of %s: %f / %f", user.first_name, user_location.latitude,
@@ -68,13 +65,11 @@ def arr_location(bot, update):
     update.message.reply_text('Точку прибуття обрано.')
     return TEST
 
-def test(bot, update):
+def test(bot, update, user_data):
     user = update.message.from_user
-    logger.info("Bio of %s: %s", user.first_name, update.message.text)
-    update.message.reply_text('Я більше нічого не вмію.')
-
+    update.message.reply_text('Номер будинку відправлення: {} \nБільше я нічого не вмію.'.format(user_data['dep_house_number']))
+#    user_data.clear()
     return ConversationHandler.END
-
 
 def cancel(bot, update):
     user = update.message.from_user
@@ -99,12 +94,12 @@ def main():
         entry_points=[CommandHandler('start', start)],
 
         states={
-            DEPARTURE: [MessageHandler(Filters.text, dep_address),
+            DEPARTURE: [MessageHandler(Filters.text, dep_address, pass_user_data=True),
             MessageHandler(Filters.location, dep_location)],
 
-            ARRIVAL: [MessageHandler(Filters.location, arr_location)],
+            ARRIVAL: [MessageHandler(Filters.location, arr_location, pass_user_data=True)],
 
-            TEST: [MessageHandler(Filters.text, test)]
+            TEST: [MessageHandler(Filters.text, test, pass_user_data=True)]
         },
 
         fallbacks=[CommandHandler('cancel', cancel)]
