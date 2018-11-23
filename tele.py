@@ -17,12 +17,16 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
+bing_token='AlbYLa6vjKs19Iv2ygH8FfHHFNE3bg6aVseGSt0JxNtEJ6cqGw2vSFl_1vk6bffl'
+
 DEPARTURE, ARRIVAL, TEST = range(3)
 
+# /start command handler
 def start(bot, update):
     update.message.reply_text('Привіт! Надішли мені адресу відправлення або геолокацію:')
     return DEPARTURE
 
+# Function that parses address options from Uklon and appends them to InlineKeyboard list
 def uklon_address_list(street_name):
     headers = {
         'Accept-Language': 'uk-UA,uk;q=0.9,ru;q=0.8,en-US;q=0.7,en;q=0.6',
@@ -35,6 +39,23 @@ def uklon_address_list(street_name):
         keyboard.append([InlineKeyboardButton(address, callback_data=address)])
     return keyboard
 
+# Receive address line from geolocation
+"""def bing_address(latitude, longitude):
+    url='http://dev.virtualearth.net/REST/v1/Locations/' + latitude + ',' + longitude + '?key=' + bing_token
+    r = requests.get(url).json()
+    address=r['resourceSets'][0]['resources'][0]['address']['addressLine']
+    return address"""
+
+# Receive coordinates from address
+"""def bing_address(street, house_number):
+    url='http://dev.virtualearth.net/REST/v1/Locations?q=' +  street + '%20' + house_number + '%20Lviv%20Ukraine&key=' + bing_token
+    r = requests.get(url).json()
+    geo=r['resourceSets'][0]['resources'][0]['geocodePoints'][0]['coordinates']
+    latitude=geo[0]
+    longitude=geo[1]
+    return address"""
+
+# DEPARTURE state
 def dep_address(bot, update, user_data):
     dep_street_name=re.sub("\d*$", "", update.message.text)
     user_data['dep_house_number'] = update.message.text.replace(dep_street_name, "")
@@ -47,16 +68,20 @@ def dep_location(bot, update):
     user_location = update.message.location
     logger.info("Location of %s: %f / %f", user.first_name, user_location.latitude,
                 user_location.longitude)
+    #print bing_geo(str(user_location.latitude), str(user_location.longitude))
     update.message.reply_text('А тепер точку прибуття.')
     return ARRIVAL
 
+# callback_query button for dep_address and future arr_address functions
 def button(bot, update):
     query = update.callback_query
-#    user_data['dep_street_name']=query.data
+    #WE NEED TO PASS callback_query DATA TO user_data
+    #user_data['dep_street_name']=query.data
     bot.edit_message_text(text="Обрана адреса відправлення: " +  "\nБудинок: " + "\nА тепер точку прибуття.",
                           chat_id=query.message.chat_id,
                           message_id=query.message.message_id)
 
+# ARRIVAL state
 def arr_location(bot, update, user_data):
     user = update.message.from_user
     user_location = update.message.location
@@ -65,12 +90,14 @@ def arr_location(bot, update, user_data):
     update.message.reply_text('Точку прибуття обрано.')
     return TEST
 
+# Test function. To be removed
 def test(bot, update, user_data):
     user = update.message.from_user
     update.message.reply_text('Номер будинку відправлення: {} \nБільше я нічого не вмію.'.format(user_data['dep_house_number']))
 #    user_data.clear()
     return ConversationHandler.END
 
+# /cancel command handler
 def cancel(bot, update):
     user = update.message.from_user
     logger.info("User %s canceled the conversation.", user.first_name)
