@@ -3,30 +3,20 @@
 
 import requests
 
-headers = {
-    'client_id': '6289de851fc726f887af8d5d7a56c635',
-}
+def uklon_estimate():
+    data = {
+      'CityId': '5',
+      'route.routePoints[0].AddressName': 'Zerova street',
+      'route.routePoints[0].HouseNumber': '26',
+      'route.routePoints[1].AddressName': 'Городоцька вулиця',
+      'route.routePoints[1].HouseNumber': '102',
+      'CarType': 'Standart'
+    }
 
-data = {
-  'CityId': '5',
-  'Referer': 'https://www.uklon.com.ua/',
-  'route.routePoints[0].AddressName': 'Зерова вулиця',
-  'route.routePoints[0].HouseNumber': '26',
-  'route.entrance': '',
-  'route.comment': '',
-  'IsRouteUndefined': 'false',
-  'route.routePoints[1].AddressName': 'Городоцька вулиця',
-  'route.routePoints[1].HouseNumber': '102',
-  'TimeType': 'now',
-  'CarType': 'Standart',
-  'PaymentType': 'Cash',
-  'PaymentInfo': 'Наличными',
-  'ClientName': '',
-  'Phone': '',
-  'ExtraCost': '0',
-  'RememberUser': 'false'
-}
+    r = requests.post('https://www.uklon.com.ua/api/v1/orders/cost', headers={'client_id': '6289de851fc726f887af8d5d7a56c635'}, data=data).json()
 
-r = requests.post('https://www.uklon.com.ua/api/v1/orders/cost', headers=headers, data=data)
+    recommended=r['cost']
+    minimal=r['cost_low']
+    return minimal
 
-print r.text
+print uklon_estimate()

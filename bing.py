@@ -10,6 +10,9 @@ def get_address():
     url='http://dev.virtualearth.net/REST/v1/Locations/49.833201,23.993919?key=' + bing_token
     r = requests.get(url).json()
     address=r['resourceSets'][0]['resources'][0]['address']['addressLine']
+    street_name=address.rsplit(',', 1)[0].replace("vulytsia", "street")
+    dep_house_number=address.rsplit(',', 1)[1]
+    return street_name, dep_house_number
 
 def get_geo():
     street='Городоцька вулиця 20'
@@ -18,3 +21,6 @@ def get_geo():
     geo=r['resourceSets'][0]['resources'][0]['geocodePoints'][0]['coordinates']
     latitude=geo[0]
     longitude=geo[1]
+    return latitude, longitude
+
+print get_address()[0]

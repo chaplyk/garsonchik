@@ -55,10 +55,6 @@ def uklon_address_list(street_name):
     longitude=geo[1]
     return address"""
 
-def random(user_data):
-    a="123123"
-    return a
-
 # DEPARTURE state
 def dep_address(bot, update, user_data):
     dep_street_name=re.sub("\d*$", "", update.message.text)
