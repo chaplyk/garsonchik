@@ -39,6 +39,22 @@ def uklon_address_list(street_name):
         keyboard.append([InlineKeyboardButton(address, callback_data=address)])
     return keyboard
 
+# Function that gets estimated price of Uklon
+def uklon_estimate(dep_street_name,dep_house_number,arr_street_name,arr_house_number):
+    data = {
+      'CityId': '5',
+      'route.routePoints[0].AddressName': dep_street_name,
+      'route.routePoints[0].HouseNumber': dep_house_number,
+      'route.routePoints[1].AddressName': arr_street_name,
+      'route.routePoints[1].HouseNumber': arr_house_number,
+      'CarType': 'Standart'
+    }
+
+    r = requests.post('https://www.uklon.com.ua/api/v1/orders/cost', headers={'client_id': '6289de851fc726f887af8d5d7a56c635'}, data=data).json()
+    recommended=r['cost']
+    minimal=str(r['cost_low'])
+    return minimal
+
 # Receive address line from geolocation
 """def bing_address(latitude, longitude):
     url='http://dev.virtualearth.net/REST/v1/Locations/' + latitude + ',' + longitude + '?key=' + bing_token
@@ -104,8 +120,8 @@ def button(bot, update, user_data):
 
 # Test function. To be removed
 def test(bot, update, user_data):
-    user = update.message.from_user
-    update.message.reply_text('Номер будинку відправлення:' + user_data['dep_house_number'] + ' \nБільше я нічого не вмію.')
+    uklon=uklon_estimate(user_data['dep_street_name'],user_data['dep_house_number'],user_data['arr_street_name'],user_data['dep_house_number'])
+    update.message.reply_text('Мінімальна вартість в Uklon: ' + uklon)
 
 # /cancel command handler
 def cancel(bot, update):
