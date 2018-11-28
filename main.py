@@ -55,6 +55,14 @@ def uklon_estimate(dep_street_name,dep_house_number,arr_street_name,arr_house_nu
     minimal=str(r['cost_low'])
     return minimal
 
+def uber_estimate(start_latitude, start_longitude, end_latitude, end_longitude):
+    headers={"Authorization":"Token 7ZtoBT8jRAttUfGpgLeSDY_UALgW9ja-mK0yr4VG"}
+    url = 'https://api.uber.com/v1.2/estimates/price?start_latitude=' + start_latitude + '&start_longitude=' + start_longitude + '&end_latitude=' + end_latitude + '&end_longitude=' + end_longitude
+    r = requests.get(url, headers = headers).json()
+    #[prices]: 0 - 1.0x, 1 - current, 2 - UberSelect
+    price=str(int(r['prices'][1]['low_estimate'])) + '-' + str(int(r['prices'][0]['high_estimate']))
+    return price
+
 # Receive address line from geolocation
 """def bing_address(latitude, longitude):
     url='http://dev.virtualearth.net/REST/v1/Locations/' + latitude + ',' + longitude + '?key=' + bing_token
@@ -63,13 +71,11 @@ def uklon_estimate(dep_street_name,dep_house_number,arr_street_name,arr_house_nu
     return address"""
 
 # Receive coordinates from address
-"""def bing_address(street, house_number):
+def bing_geo(street, house_number):
     url='http://dev.virtualearth.net/REST/v1/Locations?q=' +  street + '%20' + house_number + '%20Lviv%20Ukraine&key=' + bing_token
     r = requests.get(url).json()
     geo=r['resourceSets'][0]['resources'][0]['geocodePoints'][0]['coordinates']
-    latitude=geo[0]
-    longitude=geo[1]
-    return address"""
+    return geo
 
 # DEPARTURE state
 def dep_address(bot, update, user_data):
@@ -120,8 +126,12 @@ def button(bot, update, user_data):
 
 # Test function. To be removed
 def test(bot, update, user_data):
+    dep_geo=bing_geo(user_data['dep_street_name'], user_data['dep_house_number'])
+    arr_geo=bing_geo(user_data['arr_street_name'], user_data['arr_house_number'])
+    uber=uber_estimate(str(dep_geo[0]),str(dep_geo[1]),str(arr_geo[0]),str(arr_geo[1]))
     uklon=uklon_estimate(user_data['dep_street_name'],user_data['dep_house_number'],user_data['arr_street_name'],user_data['dep_house_number'])
-    update.message.reply_text('Мінімальна вартість в Uklon: ' + uklon)
+    update.message.reply_text('Мінімальна вартість Uklon: ' + uklon + ' UAH' + '\nПриблизна вартість Uber: ' + uber + ' UAH')
+
 
 # /cancel command handler
 def cancel(bot, update):
