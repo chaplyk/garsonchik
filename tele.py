@@ -55,6 +55,10 @@ def uklon_address_list(street_name):
     longitude=geo[1]
     return address"""
 
+def random(user_data):
+    a="123123"
+    return a
+
 # DEPARTURE state
 def dep_address(bot, update, user_data):
     dep_street_name=re.sub("\d*$", "", update.message.text)
@@ -72,16 +76,14 @@ def dep_location(bot, update):
     update.message.reply_text('А тепер точку прибуття.')
     return ARRIVAL
 
-# callback_query button for dep_address and future arr_address functions
-def button(bot, update):
-    query = update.callback_query
-    #WE NEED TO PASS callback_query DATA TO user_data
-    #user_data['dep_street_name']=query.data
-    bot.edit_message_text(text="Обрана адреса відправлення: " +  "\nБудинок: " + "\nА тепер точку прибуття.",
-                          chat_id=query.message.chat_id,
-                          message_id=query.message.message_id)
-
 # ARRIVAL state
+def arr_address(bot, update, user_data):
+    arr_street_name=re.sub("\d*$", "", update.message.text)
+    user_data['arr_house_number'] = update.message.text.replace(arr_street_name, "")
+    reply_markup = InlineKeyboardMarkup(uklon_address_list(arr_street_name))
+    update.message.reply_text('Обери вулицю із переліку:', reply_markup=reply_markup)
+    return TEST
+
 def arr_location(bot, update, user_data):
     user = update.message.from_user
     user_location = update.message.location
@@ -90,12 +92,24 @@ def arr_location(bot, update, user_data):
     update.message.reply_text('Точку прибуття обрано.')
     return TEST
 
+# callback_query for dep_address and arr_address functions
+def button(bot, update, user_data):
+    query = update.callback_query
+    if user_data.get('arr_house_number') is None:
+        user_data['dep_street_name']=query.data
+        bot.edit_message_text(text="Адреса відправлення: " + user_data['dep_street_name'] + "\nБудинок: " + user_data['dep_house_number'] + "\nА тепер точку прибуття.",
+                            chat_id=query.message.chat_id,
+                            message_id=query.message.message_id)
+    if user_data.get('arr_house_number') is not None:
+        user_data['arr_street_name']=query.data
+        bot.edit_message_text(text="Адреса прибуття: " + user_data['arr_street_name'] + "\nБудинок: " + user_data['arr_house_number'] + "\nРозраховую вартість...",
+                            chat_id=query.message.chat_id,
+                            message_id=query.message.message_id)
+
 # Test function. To be removed
 def test(bot, update, user_data):
     user = update.message.from_user
-    update.message.reply_text('Номер будинку відправлення: {} \nБільше я нічого не вмію.'.format(user_data['dep_house_number']))
-#    user_data.clear()
-    return ConversationHandler.END
+    update.message.reply_text('Номер будинку відправлення:' + user_data['dep_house_number'] + ' \nБільше я нічого не вмію.')
 
 # /cancel command handler
 def cancel(bot, update):
@@ -124,7 +138,8 @@ def main():
             DEPARTURE: [MessageHandler(Filters.text, dep_address, pass_user_data=True),
             MessageHandler(Filters.location, dep_location)],
 
-            ARRIVAL: [MessageHandler(Filters.location, arr_location, pass_user_data=True)],
+            ARRIVAL: [MessageHandler(Filters.text, arr_address, pass_user_data=True),
+            MessageHandler(Filters.location, arr_location, pass_user_data=True)],
 
             TEST: [MessageHandler(Filters.text, test, pass_user_data=True)]
         },
@@ -132,7 +147,7 @@ def main():
         fallbacks=[CommandHandler('cancel', cancel)]
     )
 
-    dp.add_handler(CallbackQueryHandler(button))
+    dp.add_handler(CallbackQueryHandler(button, pass_user_data=True))
 
     dp.add_handler(conversation_handler)
 
