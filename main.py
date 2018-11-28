@@ -4,9 +4,9 @@ import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
 #Starting the bot
-from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup)
+from telegram import (ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
-                          ConversationHandler, CallbackQueryHandler, TypeHandler)
+                          ConversationHandler, CallbackQueryHandler)
 import requests
 import logging
 import re
@@ -36,7 +36,8 @@ def uklon_address_list(street_name):
     keyboard  = []
     for a in response:
         address=a['address_name']
-        keyboard.append([InlineKeyboardButton(address, callback_data=address)])
+        if not "(вул" in address: #remove not street names from results
+            keyboard.append([InlineKeyboardButton(address, callback_data=address)])
     return keyboard
 
 # Function that gets estimated price of Uklon
@@ -79,30 +80,42 @@ def bing_geo(street, house_number):
 
 # DEPARTURE state
 def dep_address(bot, update, user_data):
+    user_data['dep_type']="address"
     dep_street_name=re.sub("\d*$", "", update.message.text)
     user_data['dep_house_number'] = update.message.text.replace(dep_street_name, "")
+    if user_data['dep_house_number'] == "":
+        update.message.reply_text('Не можу знайти номер будинку.')
+        user_data.clear()
+        return ConversationHandler.END
     reply_markup = InlineKeyboardMarkup(uklon_address_list(dep_street_name))
     update.message.reply_text('Обери вулицю із переліку:', reply_markup=reply_markup)
     return ARRIVAL
 
 def dep_location(bot, update):
+    user_data['dep_type']="location"
     user = update.message.from_user
     user_location = update.message.location
     logger.info("Location of %s: %f / %f", user.first_name, user_location.latitude,
                 user_location.longitude)
-    #print bing_geo(str(user_location.latitude), str(user_location.longitude))
+    #print bing_address(str(user_location.latitude), str(user_location.longitude))
     update.message.reply_text('А тепер точку прибуття.')
     return ARRIVAL
 
 # ARRIVAL state
 def arr_address(bot, update, user_data):
+    user_data['arr_type']="address"
     arr_street_name=re.sub("\d*$", "", update.message.text)
     user_data['arr_house_number'] = update.message.text.replace(arr_street_name, "")
+    if user_data['dep_house_number'] == "":
+        update.message.reply_text('Не можу знайти номер будинку.')
+        user_data.clear()
+        return ConversationHandler.END
     reply_markup = InlineKeyboardMarkup(uklon_address_list(arr_street_name))
     update.message.reply_text('Обери вулицю із переліку:', reply_markup=reply_markup)
     return TEST
 
 def arr_location(bot, update, user_data):
+    user_data['arr_type']="location"
     user = update.message.from_user
     user_location = update.message.location
     logger.info("Location of %s: %f / %f", user.first_name, user_location.latitude,
@@ -120,18 +133,20 @@ def button(bot, update, user_data):
                             message_id=query.message.message_id)
     if user_data.get('arr_house_number') is not None:
         user_data['arr_street_name']=query.data
-        bot.edit_message_text(text="Адреса прибуття: " + user_data['arr_street_name'] + "\nБудинок: " + user_data['arr_house_number'] + "\nРозраховую вартість...",
+        bot.edit_message_text(text="Адреса прибуття: " + user_data['arr_street_name'] + "\nБудинок: " + user_data['arr_house_number'] + "\nРозраховую вартість...(надішли будь-що)",
                             chat_id=query.message.chat_id,
                             message_id=query.message.message_id)
 
 # Test function. To be removed
 def test(bot, update, user_data):
-    dep_geo=bing_geo(user_data['dep_street_name'], user_data['dep_house_number'])
-    arr_geo=bing_geo(user_data['arr_street_name'], user_data['arr_house_number'])
+    if user_data['arr_type'] == "address":
+        dep_geo=bing_geo(user_data['dep_street_name'], user_data['dep_house_number'])
+        arr_geo=bing_geo(user_data['arr_street_name'], user_data['arr_house_number'])
     uber=uber_estimate(str(dep_geo[0]),str(dep_geo[1]),str(arr_geo[0]),str(arr_geo[1]))
     uklon=uklon_estimate(user_data['dep_street_name'],user_data['dep_house_number'],user_data['arr_street_name'],user_data['dep_house_number'])
     update.message.reply_text('Мінімальна вартість Uklon: ' + uklon + ' UAH' + '\nПриблизна вартість Uber: ' + uber + ' UAH')
-
+    user_data.clear()
+    return ConversationHandler.END
 
 # /cancel command handler
 def cancel(bot, update):
@@ -139,13 +154,11 @@ def cancel(bot, update):
     logger.info("User %s canceled the conversation.", user.first_name)
     update.message.reply_text('Гарного дня!',
                               reply_markup=ReplyKeyboardRemove())
-
     return ConversationHandler.END
 
 def error(bot, update, error):
     # Log Errors caused by Updates.
     logger.warning('Update "%s" caused error "%s"', update, error)
-
 
 def main():
     # Create the EventHandler and get the dispatcher
@@ -158,10 +171,12 @@ def main():
 
         states={
             DEPARTURE: [MessageHandler(Filters.text, dep_address, pass_user_data=True),
-            MessageHandler(Filters.location, dep_location)],
+            MessageHandler(Filters.location, dep_location)
+            ],
 
             ARRIVAL: [MessageHandler(Filters.text, arr_address, pass_user_data=True),
-            MessageHandler(Filters.location, arr_location, pass_user_data=True)],
+            MessageHandler(Filters.location, arr_location, pass_user_data=True)
+            ],
 
             TEST: [MessageHandler(Filters.text, test, pass_user_data=True)]
         },

@@ -19,8 +19,6 @@ def get_geo():
     url='http://dev.virtualearth.net/REST/v1/Locations?q=' +  street + '%20Lviv%20Ukraine&key=' + bing_token
     r = requests.get(url).json()
     geo=r['resourceSets'][0]['resources'][0]['geocodePoints'][0]['coordinates']
-    latitude=geo[0]
-    longitude=geo[1]
-    return latitude, longitude
+    return geo
 
-print get_address()[0]
+print get_address()
