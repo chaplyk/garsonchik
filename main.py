@@ -10,6 +10,7 @@ from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, Rege
 import requests
 import logging
 import re
+import optima
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -143,9 +144,15 @@ def test(bot, update, user_data):
     if user_data['arr_type'] == "address":
         dep_geo=bing_geo(user_data['dep_street_name'], user_data['dep_house_number'])
         arr_geo=bing_geo(user_data['arr_street_name'], user_data['arr_house_number'])
-    uber=uber_estimate(str(dep_geo[0]),str(dep_geo[1]),str(arr_geo[0]),str(arr_geo[1]))
+        dep_lat=str(dep_geo[0])
+        dep_lon=str(dep_geo[1])
+        arr_lat=str(arr_geo[0])
+        arr_lon=str(arr_geo[1])
+
+    uber=uber_estimate(dep_lat,dep_lon,arr_lat,arr_lon)
     uklon=uklon_estimate(user_data['dep_street_name'],user_data['dep_house_number'],user_data['arr_street_name'],user_data['dep_house_number'])
-    update.message.reply_text('Мінімальна вартість Uklon: ' + uklon + ' UAH' + '\nПриблизна вартість Uber: ~' + uber[0] + ' UAH' '\nМінімальна вартість Uber: ~' + uber[1] + ' UAH')
+    optimalne=optima.optima_estimate(optima.get_optima_details(dep_lat,dep_lon)[0], optima.get_optima_details(dep_lat,dep_lon)[1], optima.get_optima_details(arr_lat,arr_lon)[0], optima.get_optima_details(arr_lat,arr_lon)[1])
+    update.message.reply_text('Мінімальна вартість Uklon: ' + uklon + ' UAH' + '\nМінімальна вартість Optima: ' + optimalne +  'UAH' + '\nПриблизна вартість Uber: ~' + uber[0] + ' UAH' '\nМінімальна вартість Uber: ~' + uber[1] + ' UAH')
     user_data.clear()
     return ConversationHandler.END
 
