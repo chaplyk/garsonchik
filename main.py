@@ -60,9 +60,10 @@ def uber_estimate(start_latitude, start_longitude, end_latitude, end_longitude):
     headers={"Authorization":"Token 7ZtoBT8jRAttUfGpgLeSDY_UALgW9ja-mK0yr4VG"}
     url = 'https://api.uber.com/v1.2/estimates/price?start_latitude=' + start_latitude + '&start_longitude=' + start_longitude + '&end_latitude=' + end_latitude + '&end_longitude=' + end_longitude
     r = requests.get(url, headers = headers).json()
-    #[prices]: 0 - 1.0x, 1 - current, 2 - UberSelect
-    price=str(int(r['prices'][1]['low_estimate'])) + '-' + str(int(r['prices'][0]['high_estimate']))
-    return price
+    #['prices']: 0 - 1.0x, 1 - current, 2 - UberSelect
+    price_current=str((int(r['prices'][1]['low_estimate'])+int(r['prices'][1]['high_estimate']))/2)
+    price_minimal=str((int(r['prices'][0]['low_estimate'])+int(r['prices'][0]['high_estimate']))/2)
+    return price_current, price_minimal
 
 # Receive address line from geolocation
 """def bing_address(latitude, longitude):
@@ -144,7 +145,7 @@ def test(bot, update, user_data):
         arr_geo=bing_geo(user_data['arr_street_name'], user_data['arr_house_number'])
     uber=uber_estimate(str(dep_geo[0]),str(dep_geo[1]),str(arr_geo[0]),str(arr_geo[1]))
     uklon=uklon_estimate(user_data['dep_street_name'],user_data['dep_house_number'],user_data['arr_street_name'],user_data['dep_house_number'])
-    update.message.reply_text('Мінімальна вартість Uklon: ' + uklon + ' UAH' + '\nПриблизна вартість Uber: ' + uber + ' UAH')
+    update.message.reply_text('Мінімальна вартість Uklon: ' + uklon + ' UAH' + '\nПриблизна вартість Uber: ~' + uber[0] + ' UAH' '\nМінімальна вартість Uber: ~' + uber[1] + ' UAH')
     user_data.clear()
     return ConversationHandler.END
 
