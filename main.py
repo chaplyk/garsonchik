@@ -86,7 +86,7 @@ def dep_address(bot, update, user_data):
     update.message.reply_text('Обери вулицю із переліку:', reply_markup=reply_markup)
     return ARRIVAL
 
-def dep_location(bot, update):
+def dep_location(bot, update, user_data):
     user_data['dep_type']="location"
     user = update.message.from_user
     user_location = update.message.location
@@ -94,7 +94,6 @@ def dep_location(bot, update):
     user_data['dep_lng']=str(user_location.longitude)
     logger.info("Location of %s: %f / %f", user.first_name, user_location.latitude,
                 user_location.longitude)
-    #print bing_address(str(user_location.latitude), str(user_location.longitude))
     update.message.reply_text('А тепер адресу прибуття (в форматі "Городоцька 171") або геолокацію.')
     return ARRIVAL
 
@@ -143,15 +142,19 @@ def test(bot, update, user_data):
         dep_lat=str(dep_geo[0])
         dep_lon=str(dep_geo[1])
     if user_data['dep_type'] == "location":
-        dep_lat=user_data['arr_lat']
-        dep_lon=user_data['arr_lng']
+        dep_lat=user_data['dep_lat']
+        dep_lon=user_data['dep_lng']
+        user_data['dep_street_name']=optima.get_optima_details(dep_lat,dep_lon)[0].replace("ВУЛ.", "вулиця")
+        user_data['dep_house_number']=optima.get_optima_details(dep_lat,dep_lon)[1]
     if user_data['arr_type'] == "address":
         arr_geo=bing_geo(user_data['arr_street_name'], user_data['arr_house_number'])
         arr_lat=str(arr_geo[0])
         arr_lon=str(arr_geo[1])
     if user_data['arr_type'] == "location":
-        dep_lat=user_data['arr_lat']
-        dep_lon=user_data['arr_lng']
+        arr_lat=user_data['arr_lat']
+        arr_lon=user_data['arr_lng']
+        user_data['arr_street_name']=optima.get_optima_details(arr_lat,arr_lon)[0].replace("ВУЛ.", "вулиця")
+        user_data['arr_house_number']=optima.get_optima_details(arr_lat,arr_lon)[1]
 
     uber=uber_estimate(dep_lat,dep_lon,arr_lat,arr_lon)
     uklon=uklon_estimate(user_data['dep_street_name'],user_data['dep_house_number'],user_data['arr_street_name'],user_data['dep_house_number'])
@@ -183,12 +186,10 @@ def main():
 
         states={
             DEPARTURE: [MessageHandler(Filters.text, dep_address, pass_user_data=True),
-            MessageHandler(Filters.location, dep_location)
-            ],
+            MessageHandler(Filters.location, dep_location, pass_user_data=True)],
 
             ARRIVAL: [MessageHandler(Filters.text, arr_address, pass_user_data=True),
-            MessageHandler(Filters.location, arr_location, pass_user_data=True)
-            ],
+            MessageHandler(Filters.location, arr_location, pass_user_data=True)],
 
             TEST: [MessageHandler(Filters.text, test, pass_user_data=True)]
         },
