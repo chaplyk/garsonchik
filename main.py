@@ -62,9 +62,11 @@ def uber_estimate(start_latitude, start_longitude, end_latitude, end_longitude):
     url = 'https://api.uber.com/v1.2/estimates/price?start_latitude=' + start_latitude + '&start_longitude=' + start_longitude + '&end_latitude=' + end_latitude + '&end_longitude=' + end_longitude
     r = requests.get(url, headers = headers).json()
     #['prices']: 0 - 1.0x, 1 - current, 2 - UberSelect
-    price_current=str((int(r['prices'][1]['low_estimate'])+int(r['prices'][1]['high_estimate']))/2)
-    price_minimal=str((int(r['prices'][0]['low_estimate'])+int(r['prices'][0]['high_estimate']))/2)
-    return price_current, price_minimal
+    price_current=(int(r['prices'][1]['low_estimate'])+int(r['prices'][1]['high_estimate'])/2)
+    price_minimal=(int(r['prices'][0]['low_estimate'])+int(r['prices'][0]['high_estimate'])/2)
+    if abs(price_current-price_minimal) <= 4:
+        price_minimal=0
+    return str(price_current), str(price_minimal)
 
 # Receive coordinates from address
 def bing_geo(street, house_number):
@@ -159,7 +161,10 @@ def test(bot, update, user_data):
     uber=uber_estimate(dep_lat,dep_lon,arr_lat,arr_lon)
     uklon=uklon_estimate(user_data['dep_street_name'],user_data['dep_house_number'],user_data['arr_street_name'],user_data['dep_house_number'])
     optimalne=optima.optima_estimate(optima.get_optima_details(dep_lat,dep_lon)[0], optima.get_optima_details(dep_lat,dep_lon)[1], optima.get_optima_details(arr_lat,arr_lon)[0], optima.get_optima_details(arr_lat,arr_lon)[1])
-    update.message.reply_text('Мінімальна вартість Uklon: ' + uklon + ' UAH' + '\nМінімальна вартість Optima: ' + optimalne +  'UAH' + '\nПриблизна вартість Uber: ~' + uber[0] + ' UAH' '\nМінімальна вартість Uber: ~' + uber[1] + ' UAH')
+    uber_message='\nПриблизна вартість Uber: ~' + uber[0] + ' UAH'
+    if uber[1] != "0":
+        uber_message+='\nМінімальна вартість Uber: ~' + uber[1] + ' UAH'
+    update.message.reply_text('Мінімальна вартість Uklon: ' + uklon + ' UAH' + '\nМінімальна вартість Optima: ' + optimalne +  'UAH' + uber_message)
     user_data.clear()
     return ConversationHandler.END
 
