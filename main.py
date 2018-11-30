@@ -24,7 +24,7 @@ DEPARTURE, ARRIVAL, TEST = range(3)
 
 # /start command handler
 def start(bot, update):
-    update.message.reply_text('Привіт! Надішли мені адресу відправлення або геолокацію:')
+    update.message.reply_text('Привіт! Надішли мені адресу відправлення (в форматі "Шевченка 14") або геолокацію:')
     return DEPARTURE
 
 # Function that parses address options from Uklon and appends them to InlineKeyboard list
@@ -66,13 +66,6 @@ def uber_estimate(start_latitude, start_longitude, end_latitude, end_longitude):
     price_minimal=str((int(r['prices'][0]['low_estimate'])+int(r['prices'][0]['high_estimate']))/2)
     return price_current, price_minimal
 
-# Receive address line from geolocation
-"""def bing_address(latitude, longitude):
-    url='http://dev.virtualearth.net/REST/v1/Locations/' + latitude + ',' + longitude + '?key=' + bing_token
-    r = requests.get(url).json()
-    address=r['resourceSets'][0]['resources'][0]['address']['addressLine']
-    return address"""
-
 # Receive coordinates from address
 def bing_geo(street, house_number):
     url='http://dev.virtualearth.net/REST/v1/Locations?q=' +  street + '%20' + house_number + '%20Lviv%20Ukraine&key=' + bing_token
@@ -97,10 +90,12 @@ def dep_location(bot, update):
     user_data['dep_type']="location"
     user = update.message.from_user
     user_location = update.message.location
+    user_data['dep_lat']=str(user_location.latitude)
+    user_data['dep_lng']=str(user_location.longitude)
     logger.info("Location of %s: %f / %f", user.first_name, user_location.latitude,
                 user_location.longitude)
     #print bing_address(str(user_location.latitude), str(user_location.longitude))
-    update.message.reply_text('А тепер точку прибуття.')
+    update.message.reply_text('А тепер адресу прибуття (в форматі "Городоцька 171") або геолокацію.')
     return ARRIVAL
 
 # ARRIVAL state
@@ -120,6 +115,8 @@ def arr_location(bot, update, user_data):
     user_data['arr_type']="location"
     user = update.message.from_user
     user_location = update.message.location
+    user_data['arr_lat']=str(user_location.latitude)
+    user_data['arr_lng']=str(user_location.longitude)
     logger.info("Location of %s: %f / %f", user.first_name, user_location.latitude,
                 user_location.longitude)
     update.message.reply_text('Точку прибуття обрано.')
@@ -141,13 +138,20 @@ def button(bot, update, user_data):
 
 # Test function. To be removed
 def test(bot, update, user_data):
-    if user_data['arr_type'] == "address":
+    if user_data['dep_type'] == "address":
         dep_geo=bing_geo(user_data['dep_street_name'], user_data['dep_house_number'])
-        arr_geo=bing_geo(user_data['arr_street_name'], user_data['arr_house_number'])
         dep_lat=str(dep_geo[0])
         dep_lon=str(dep_geo[1])
+    if user_data['dep_type'] == "location":
+        dep_lat=user_data['arr_lat']
+        dep_lon=user_data['arr_lng']
+    if user_data['arr_type'] == "address":
+        arr_geo=bing_geo(user_data['arr_street_name'], user_data['arr_house_number'])
         arr_lat=str(arr_geo[0])
         arr_lon=str(arr_geo[1])
+    if user_data['arr_type'] == "location":
+        dep_lat=user_data['arr_lat']
+        dep_lon=user_data['arr_lng']
 
     uber=uber_estimate(dep_lat,dep_lon,arr_lat,arr_lon)
     uklon=uklon_estimate(user_data['dep_street_name'],user_data['dep_house_number'],user_data['arr_street_name'],user_data['dep_house_number'])

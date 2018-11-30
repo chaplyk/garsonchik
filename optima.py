@@ -7,7 +7,14 @@ sys.setdefaultencoding('utf-8')
 import requests
 
 s = requests.Session()
-s.get('https://optima.fm/uk/taxi-lviv')
+
+headers = {
+    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36',
+    'cookie': 'PHPSESSID=pj42rd7d60v5hn18eo3u7q4jj7; _ga=GA1.2.365212614.1542729134; _gid=GA1.2.1171649137.1543497998',
+    }
+
+s.get('https://optima.fm/uk/taxi-lviv', headers=headers)
+
 
 def optima_estimate(dep_street, dep_house, arr_street, arr_house):
     global s
