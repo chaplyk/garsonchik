@@ -4,13 +4,14 @@ import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
 #Starting the bot
-from telegram import (ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup)
+from telegram import (ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
                           ConversationHandler, CallbackQueryHandler)
 import requests
 import logging
 import re
 import optima
+import time
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 bing_token='AlbYLa6vjKs19Iv2ygH8FfHHFNE3bg6aVseGSt0JxNtEJ6cqGw2vSFl_1vk6bffl'
 
-DEPARTURE, ARRIVAL, TEST = range(3)
+DEPARTURE, ARRIVAL, TEST, MONITOR, CANCEL = range(5)
 
 # /start command handler
 def start(bot, update):
@@ -65,8 +66,8 @@ def uber_estimate(start_latitude, start_longitude, end_latitude, end_longitude):
     price_current=(int(r['prices'][1]['low_estimate'])+int(r['prices'][1]['high_estimate'])/2)
     price_minimal=(int(r['prices'][0]['low_estimate'])+int(r['prices'][0]['high_estimate'])/2)
     if abs(price_current-price_minimal) <= 4:
-        price_minimal=0
-    return str(price_current), str(price_minimal)
+        price_minimal=None
+    return price_current, price_minimal
 
 # Receive coordinates from address
 def bing_geo(street, house_number):
@@ -143,6 +144,8 @@ def test(bot, update, user_data):
         dep_geo=bing_geo(user_data['dep_street_name'], user_data['dep_house_number'])
         dep_lat=str(dep_geo[0])
         dep_lon=str(dep_geo[1])
+        user_data['dep_lat']=dep_lat
+        user_data['dep_lng']=dep_lon
     if user_data['dep_type'] == "location":
         dep_lat=user_data['dep_lat']
         dep_lon=user_data['dep_lng']
@@ -152,6 +155,8 @@ def test(bot, update, user_data):
         arr_geo=bing_geo(user_data['arr_street_name'], user_data['arr_house_number'])
         arr_lat=str(arr_geo[0])
         arr_lon=str(arr_geo[1])
+        user_data['arr_lat']=arr_lat
+        user_data['arr_lng']=arr_lon
     if user_data['arr_type'] == "location":
         arr_lat=user_data['arr_lat']
         arr_lon=user_data['arr_lng']
@@ -161,12 +166,32 @@ def test(bot, update, user_data):
     uber=uber_estimate(dep_lat,dep_lon,arr_lat,arr_lon)
     uklon=uklon_estimate(user_data['dep_street_name'],user_data['dep_house_number'],user_data['arr_street_name'],user_data['dep_house_number'])
     optimalne=optima.optima_estimate(optima.get_optima_details(dep_lat,dep_lon)[0], optima.get_optima_details(dep_lat,dep_lon)[1], optima.get_optima_details(arr_lat,arr_lon)[0], optima.get_optima_details(arr_lat,arr_lon)[1])
-    uber_message='\nПриблизна вартість Uber: ~' + uber[0] + ' UAH'
-    if uber[1] != "0":
-        uber_message+='\nМінімальна вартість Uber: ~' + uber[1] + ' UAH'
+    uber_message='\nПриблизна вартість Uber: ~' + str(uber[0]) + ' UAH'
+    if uber[1] != None:
+        uber_message+='\nМінімальна вартість Uber: ~' + str(uber[1]) + ' UAH'
     update.message.reply_text('Мінімальна вартість Uklon: ' + uklon + ' UAH' + '\nМінімальна вартість Optima: ' + optimalne +  'UAH' + uber_message)
-    user_data.clear()
-    return ConversationHandler.END
+#    user_data.clear()
+#    return ConversationHandler.END
+    return MONITOR
+
+def monitor(bot, update, user_data):
+    reply_keyboard = ['Скасувати пошук']
+#    markup = InlineKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+#    update.message.reply_text('Я скажу тобі коли Uber подешевшає.', reply_markup=markup)
+    uber_minimal=uber_estimate(user_data['dep_lat'],user_data['dep_lng'],user_data['arr_lat'],user_data['arr_lng'])[1]
+    uber=uber_estimate(user_data['dep_lat'],user_data['dep_lng'],user_data['arr_lat'],user_data['arr_lng'])[0]
+    while True:
+        print 'test'
+        uber_new=uber_estimate(user_data['dep_lat'],user_data['dep_lng'],user_data['arr_lat'],user_data['arr_lng'])[0]
+        if uber_new < uber and abs(uber-uber_minimal) > 4:
+            update.message.reply_text('А ось і подешевшання: ' + str(uber_new) + ' UAH')
+            uber=uber_new
+        if uber_new < uber and abs(uber-uber_minimal) <= 4:
+            update.message.reply_text('Вартість упала до мінімальної: ' + str(uber_new) + ' UAH')
+            break
+        time.sleep(15)
+    return CANCEL
+
 
 # /cancel command handler
 def cancel(bot, update):
@@ -196,7 +221,11 @@ def main():
             ARRIVAL: [MessageHandler(Filters.text, arr_address, pass_user_data=True),
             MessageHandler(Filters.location, arr_location, pass_user_data=True)],
 
-            TEST: [MessageHandler(Filters.text, test, pass_user_data=True)]
+            TEST: [MessageHandler(Filters.text, test, pass_user_data=True)],
+
+            MONITOR: [RegexHandler('^Monitor$', monitor, pass_user_data=True)],
+
+            CANCEL: [RegexHandler('^Скасувати пошук$', cancel)]
         },
 
         fallbacks=[CommandHandler('cancel', cancel)]
